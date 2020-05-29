@@ -1,0 +1,14 @@
+{
+    "name": "Tabber",
+    "description": "Manage your tabs",
+    "version": "1",
+    "manifest_version": 2,
+    "permissions": [
+        "tabs",
+        "contextMenus"
+    ],
+    "background": {
+        "scripts": ["tabber.js"],
+        "persistent": false
+    }
+}
