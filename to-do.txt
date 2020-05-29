@@ -1,7 +1,0 @@
-1- update context menu in the previous window and the new window.
-2- handle onclose tab event
-3- when move tabs to new window, open this window in full screen
-
-
-bugs :
-    
