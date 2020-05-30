@@ -2,12 +2,19 @@ let tabsGroups = [];
 
 function initializeTabsGrouping(options) {
     chrome.tabs.query({windowId: chrome.windows.WINDOW_ID_CURRENT}, (tabs) => {
+        showErrorIfExists('error in initializeTabsGrouping');
         // group related tabs
         tabsGroups = getTabsGroups(tabs);
 
         // create context menu with items as the tabs groups
         initializeTabsGroupsContextMenu(tabsGroups);
     });
+}
+
+function showErrorIfExists(source) {
+    if (chrome.runtime.lastError) {
+        console.error(`${source} : `, chrome.runtime.lastError);
+    }
 }
 
 initializeTabsGrouping();
@@ -17,12 +24,14 @@ let createdTabUrl = '';
 
 // when a tab is created
 chrome.tabs.onCreated.addListener(function(createdTab) {
+    showErrorIfExists('error in chrome.tabs.onCreated.addListener');
     console.log('created tab : ', createdTab);
     createdTabId = createdTab.id;
     createdTabUrl = createdTab.url;
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, updatedTab) => {
+    showErrorIfExists('error in chrome.tabs.onUpdated.addListener');
     handleTabUpdate(updatedTab, changeInfo);
 });
 
@@ -45,12 +54,13 @@ function handleTabUpdate(updatedTab, changeInfo) {
     //console.log('updated tab : ', updatedTab);
 
     if (changeInfo.url) {
-        tabsGroups = removeFromTabsGroupsIfItExistsOnce(tabsGroups, getBaseUrlOfAbsoluteUrl(createdTabUrl));
+        //tabsGroups = removeFromTabsGroupsIfItExistsOnce(tabsGroups, getBaseUrlOfAbsoluteUrl(createdTabUrl));
         console.log('url update : ', updatedTab);
         
         let baseUrl = getBaseUrlOfTab(updatedTab);
 
         chrome.tabs.query({}, (tabs) => {
+            showErrorIfExists('error in chrome.tabs.query the tabs');
             console.log('the tabs', tabs);
         });
 
@@ -70,9 +80,12 @@ function handleTabUpdate(updatedTab, changeInfo) {
         // add an item to the context menu when it's only a new base url
         if (baseUrlIndex === -1) {
             chrome.windows.getCurrent({populate: true}, function(currentWindow) {
+                showErrorIfExists('error in chrome.windows.getCurrent');
                 chrome.contextMenus.create({
                     id: baseUrl,
                     title: baseUrl,
+                }, () => {
+                    showErrorIfExists('error in chrome.contextMenus.create inside handleTabUpdate');
                 });                    
             });   
         }
@@ -97,6 +110,7 @@ function getBaseUrlPatterns(currentWindow) {
 // when a context menu item (tabsgroup) is clicked
 // we should move this group to a new window (for now but better we need options to what we can do with this group)
 chrome.contextMenus.onClicked.addListener(function(menuItemInfo, tab) {
+    showErrorIfExists('error in chrome.contextMenus.onClicked.addListener');
     console.log('clicked menu item : ', menuItemInfo);
     console.log('tabsGroups after update : ', tabsGroups);
     let tabsGroupIndex = tabsGroups.findIndex((e) => {
@@ -106,8 +120,10 @@ chrome.contextMenus.onClicked.addListener(function(menuItemInfo, tab) {
     let tabsGroup = tabsGroups[tabsGroupIndex];
 
     chrome.contextMenus.removeAll(function() {
+        showErrorIfExists('error in chrome.contextMenus.removeAll inside chrome.contextMenus.onClicked.addListener');
         // create new window
         chrome.windows.create((createdWindow) => {
+            showErrorIfExists('error in chrome.windows.create');
             currentWindowId = createdWindow.id;
             firstTimeChange = false;
             let tabsIds = tabsGroup.tabs.map((tab) => {
@@ -118,11 +134,16 @@ chrome.contextMenus.onClicked.addListener(function(menuItemInfo, tab) {
 
             // move this group to the new window
             chrome.tabs.move(tabsIds, {index: 0, windowId: createdWindow.id}, function() {
+                showErrorIfExists('error in chrome.tabs.move');
                 // a new tab is created when we move to the new window and it become the active tab so we should delete it.
                 chrome.tabs.query({active: true, windowId: createdWindow.id}, (tabs) => {
+                    showErrorIfExists('error in cchrome.tabs.query inside chrome.tabs.move');
                     console.log('current tab inside contextMenu onclicked : ', tabs);
-                    chrome.tabs.remove(tabs[0].id);
-                    initializeTabsGrouping();
+                    chrome.tabs.remove(tabs[0].id, () => {
+                        showErrorIfExists('error in chrome.tabs.remove');
+                        initializeTabsGrouping();
+                    });
+                    
                 });
             });    
         });
@@ -133,11 +154,13 @@ let currentWindowId = -1;
 let firstTimeChange = true;
 
 chrome.tabs.onActivated.addListener(function(activeInfo) {
+    showErrorIfExists('error in chrome.tabs.onActivated.addListener');
     console.log('tab changed');
     handleChangeInWindowOrTab(activeInfo.windowId, 'tab');
 });
 
 chrome.windows.onFocusChanged.addListener(function(windowId) {
+    showErrorIfExists('error in chrome.windows.onFocusChanged.addListener');
     console.log('onFocusChanged : ');
     handleChangeInWindowOrTab(windowId, 'window');
 });
@@ -165,6 +188,7 @@ function handleChangeInWindowOrTab(windowId, source) {
         
         if (windowId && windowId !== -1) {
             chrome.windows.get(windowId, {populate: true}, function(currentWindow) {
+                showErrorIfExists('error in chrome.windows.get');
                 tabsGroups = getTabsGroups(currentWindow.tabs);
                 console.log('onFocusChanged tabsGroups : ', tabsGroups);
                 initializeTabsGroupsContextMenu(tabsGroups);
@@ -196,9 +220,11 @@ function getTabsGroups(tabs) {
 
     for (let i = 0; i < tabs.length; i++) {
         let currentBaseUrl = getBaseUrlOfTab(tabs[i]);
+
         if (currentBaseUrl == '') {
             continue;
         }
+
         tabsGroups = updateTabsGroupsWhenNewTabAndBaseUrlAdded(currentBaseUrl, tabsGroups, tabs[i]);
     }
 
@@ -225,6 +251,7 @@ function updateTabsGroupsWhenNewTabAndBaseUrlAdded(baseUrl, tabsGroups, tab) {
 
 function initializeTabsGroupsContextMenu(tabsGroups, options, callback) {
     chrome.contextMenus.removeAll(function() {
+        showErrorIfExists('error in chrome.contextMenus.removeAll inside initializeTabsGroupsContextMenu');
         let counter = 0;
 
         console.log('tabsGroups in initializeTabsGroupsContextMenu : ', tabsGroups);
@@ -236,6 +263,7 @@ function initializeTabsGroupsContextMenu(tabsGroups, options, callback) {
             };
 
             chrome.contextMenus.create(myOptions, function() {
+                showErrorIfExists('error in chrome.contextMenus.create inside initializeTabsGroupsContextMenu');
                 counter++;
 
                 console.log('counter : ', counter);
