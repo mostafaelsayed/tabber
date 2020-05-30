@@ -26,21 +26,29 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, updatedTab) => {
     handleTabUpdate(updatedTab, changeInfo);
 });
 
+function removeFromTabsGroupsIfItExistsOnce(tabsGroups, baseUrl) {
+    let groupIndex = tabsGroups.findIndex((group) => {
+        return group.baseUrl == baseUrl;
+    });
+
+    if (groupIndex !== -1) {
+        if (tabsGroups[groupIndex].tabs < 2) {
+            tabsGroups.splice(groupIndex, 1);
+        }
+    }
+
+    return tabsGroups;
+}
+
 function handleTabUpdate(updatedTab, changeInfo) {
     // wait for url to update
     //console.log('updated tab : ', updatedTab);
 
-    if (createdTabUrl != updatedTab.url && createdTabId == updatedTab.id) {
+    if (changeInfo.url) {
+        tabsGroups = removeFromTabsGroupsIfItExistsOnce(tabsGroups, getBaseUrlOfAbsoluteUrl(createdTabUrl));
         console.log('url update : ', updatedTab);
-        let baseUrl = getBaseUrlOfTab(updatedTab);
-
-        // to prevent listening for update event again. we want only url changes
         
-
-        // // we should not consider "chrome new tab" url (optional)
-        // if (baseUrl == 'chrome://newtab') {
-        //     return;
-        // }
+        let baseUrl = getBaseUrlOfTab(updatedTab);
 
         chrome.tabs.query({}, (tabs) => {
             console.log('the tabs', tabs);
@@ -58,47 +66,19 @@ function handleTabUpdate(updatedTab, changeInfo) {
         console.log('tabsGroups after base url update :', tabsGroups);
         
         //console.log('tabsGroups after update : ', tabsGroups);
+
         // add an item to the context menu when it's only a new base url
         if (baseUrlIndex === -1) {
             chrome.windows.getCurrent({populate: true}, function(currentWindow) {
-                //chrome.contextMenus.remove(getBaseUrlOfAbsoluteUrl(createdTabUrl), function() {
-                    chrome.contextMenus.create({
-                        id: baseUrl,
-                        title: baseUrl,
-                        //documentUrlPatterns: baseUrlPatterns
-                    }, () => {
-                        createdTabUrl = updatedTab.url;
-                    });
-                //})
-                    
-            });
-
-
-            
-            
+                chrome.contextMenus.create({
+                    id: baseUrl,
+                    title: baseUrl,
+                });                    
+            });   
         }
-        // else {
-        //     chrome.contextMenus.remove(getBaseUrlOfAbsoluteUrl(createdTabUrl), function() {
-        //         chrome.contextMenus.create({
-        //             id: baseUrl,
-        //             title: baseUrl,
-        //             //documentUrlPatterns: baseUrlPatterns
-        //         }, () => {
-        //             createdTabUrl = updatedTab.url;
-        //         });
-        //     });
-        // }
+
+        createdTabUrl = updatedTab.url;
     }
-    // else if (updatedTab && !createdTab) {
-    //     let baseUrl = getBaseUrlOfTab(updatedTab);
-        
-    //     if (when == 'whenUpdate') {
-    //         chrome.contextMenus.update(baseUrl, {
-    //             title: baseUrl,
-    //             //documentUrlPatterns: baseUrlPatterns
-    //         });
-    //     }
-    // }
 }
 
 function getBaseUrlPatterns(currentWindow) {
@@ -109,7 +89,6 @@ function getBaseUrlPatterns(currentWindow) {
         });
 
         if (baseUrlIndex === -1) {
-            //baseUrlPatterns.push(currentBaseUrlPattern)
             return currentBaseUrlPattern; 
         }
     });
@@ -141,7 +120,7 @@ chrome.contextMenus.onClicked.addListener(function(menuItemInfo, tab) {
             chrome.tabs.move(tabsIds, {index: 0, windowId: createdWindow.id}, function() {
                 // a new tab is created when we move to the new window and it become the active tab so we should delete it.
                 chrome.tabs.query({active: true, windowId: createdWindow.id}, (tabs) => {
-                    console.log('current tab : ', tabs);
+                    console.log('current tab inside contextMenu onclicked : ', tabs);
                     chrome.tabs.remove(tabs[0].id);
                     initializeTabsGrouping();
                 });
@@ -165,9 +144,7 @@ chrome.windows.onFocusChanged.addListener(function(windowId) {
 
 
 
-function handleChangeInWindowOrTab(windowId, source) {
-    
-    //chrome.windows.getCurrent(function(currentWindow) {
+function handleChangeInWindowOrTab(windowId, source) {    
         // console.log('currentWindowId : ', currentWindowId);
         // console.log('focused windowId : ', windowId);
         // console.log('firstTimeChange : ', firstTimeChange);
@@ -188,13 +165,11 @@ function handleChangeInWindowOrTab(windowId, source) {
         
         if (windowId && windowId !== -1) {
             chrome.windows.get(windowId, {populate: true}, function(currentWindow) {
-                console.log('windowId that selected : ', windowId);
                 tabsGroups = getTabsGroups(currentWindow.tabs);
                 console.log('onFocusChanged tabsGroups : ', tabsGroups);
                 initializeTabsGroupsContextMenu(tabsGroups);
             });
         }
-    //});
 }
 
 function getBaseUrlOfTab(tab) {
@@ -252,23 +227,14 @@ function initializeTabsGroupsContextMenu(tabsGroups, options, callback) {
     chrome.contextMenus.removeAll(function() {
         let counter = 0;
 
-        console.log('options in initializeTabsGroupsContextMenu : ', options);
         console.log('tabsGroups in initializeTabsGroupsContextMenu : ', tabsGroups);
 
         for (let i = 0; i < tabsGroups.length; i++) {
-            // if (tabsGroups[i].baseUrl == 'chrome://newtab') {
-            //     continue;
-            // }
             let myOptions = {
                 id: tabsGroups[i].baseUrl,
-                title: tabsGroups[i].baseUrl,
-                documentUrlPatterns: options? options.documentUrlPatterns : undefined
-                //options: options ? options : {}
+                title: tabsGroups[i].baseUrl
             };
 
-            if (options) {
-                console.log('documentUrlPatterns : ', options.documentUrlPatterns);
-            }
             chrome.contextMenus.create(myOptions, function() {
                 counter++;
 
