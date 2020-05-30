@@ -7,3 +7,4 @@
 
 
 ## Bugs
+1. when move group to new window, error in console says that cannot created duplicate item id (not affecting anything for now)
