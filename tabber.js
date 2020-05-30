@@ -19,14 +19,14 @@ let createdTabUrl = '';
 chrome.tabs.onCreated.addListener(function(createdTab) {
     console.log('created tab : ', createdTab);
     createdTabId = createdTab.id;
-    createdTabUrl = createdTab.url;   
+    createdTabUrl = createdTab.url;
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, updatedTab) => {
-    handleTabUpdate(updatedTab);
+    handleTabUpdate(updatedTab, changeInfo);
 });
 
-function handleTabUpdate(updatedTab) {
+function handleTabUpdate(updatedTab, changeInfo) {
     // wait for url to update
     //console.log('updated tab : ', updatedTab);
 
@@ -35,12 +35,12 @@ function handleTabUpdate(updatedTab) {
         let baseUrl = getBaseUrlOfTab(updatedTab);
 
         // to prevent listening for update event again. we want only url changes
-        createdTabUrl = updatedTab.url;
+        
 
-        // we should not consider "chrome new tab" url (optional)
-        if (baseUrl == 'chrome://newtab') {
-            return;
-        }
+        // // we should not consider "chrome new tab" url (optional)
+        // if (baseUrl == 'chrome://newtab') {
+        //     return;
+        // }
 
         chrome.tabs.query({}, (tabs) => {
             console.log('the tabs', tabs);
@@ -52,24 +52,42 @@ function handleTabUpdate(updatedTab) {
 
         console.log('base url after update :', baseUrl);
         // update tabs groups with this baseurl and tab
-        tabsGroups = updateTabsGroupsWhenNewTabAndBaseUrlAdded(baseUrl, tabsGroups, updatedTab);
 
+        tabsGroups = updateTabsGroupsWhenNewTabAndBaseUrlAdded(baseUrl, tabsGroups, updatedTab);
+        
         console.log('tabsGroups after base url update :', tabsGroups);
         
         //console.log('tabsGroups after update : ', tabsGroups);
         // add an item to the context menu when it's only a new base url
         if (baseUrlIndex === -1) {
             chrome.windows.getCurrent({populate: true}, function(currentWindow) {
-                //let baseUrlPatterns = getBaseUrlPatterns(currentWindow);
-
-                chrome.contextMenus.create({
-                    id: baseUrl,
-                    title: baseUrl,
-                    //documentUrlPatterns: baseUrlPatterns
-                });
+                //chrome.contextMenus.remove(getBaseUrlOfAbsoluteUrl(createdTabUrl), function() {
+                    chrome.contextMenus.create({
+                        id: baseUrl,
+                        title: baseUrl,
+                        //documentUrlPatterns: baseUrlPatterns
+                    }, () => {
+                        createdTabUrl = updatedTab.url;
+                    });
+                //})
+                    
             });
+
+
+            
             
         }
+        // else {
+        //     chrome.contextMenus.remove(getBaseUrlOfAbsoluteUrl(createdTabUrl), function() {
+        //         chrome.contextMenus.create({
+        //             id: baseUrl,
+        //             title: baseUrl,
+        //             //documentUrlPatterns: baseUrlPatterns
+        //         }, () => {
+        //             createdTabUrl = updatedTab.url;
+        //         });
+        //     });
+        // }
     }
     // else if (updatedTab && !createdTab) {
     //     let baseUrl = getBaseUrlOfTab(updatedTab);
@@ -186,6 +204,12 @@ function getBaseUrlOfTab(tab) {
     return baseUrl;
 }
 
+function getBaseUrlOfAbsoluteUrl(url) {
+    let baseUrl = url.substring(0, url.indexOf('/', url.indexOf('//') + 2));
+
+    return baseUrl;
+}
+
 function getBaseUrlIndexInsideTabsGroups(tabsGroups, baseUrl) {
     return tabsGroups.findIndex((group) => {
         return group.baseUrl == baseUrl;
@@ -232,9 +256,9 @@ function initializeTabsGroupsContextMenu(tabsGroups, options, callback) {
         console.log('tabsGroups in initializeTabsGroupsContextMenu : ', tabsGroups);
 
         for (let i = 0; i < tabsGroups.length; i++) {
-            if (tabsGroups[i].baseUrl == 'chrome://newtab') {
-                continue;
-            }
+            // if (tabsGroups[i].baseUrl == 'chrome://newtab') {
+            //     continue;
+            // }
             let myOptions = {
                 id: tabsGroups[i].baseUrl,
                 title: tabsGroups[i].baseUrl,
