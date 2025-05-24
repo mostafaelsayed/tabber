@@ -2,13 +2,12 @@
     "name": "Tabber",
     "description": "Manage your tabs",
     "version": "1",
-    "manifest_version": 2,
+    "manifest_version": 3,
     "permissions": [
         "tabs",
         "contextMenus"
     ],
     "background": {
-        "scripts": ["tabber.js"],
-        "persistent": false
+        "service_worker": "tabber.js"
     }
 }
