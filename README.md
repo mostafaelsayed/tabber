@@ -6,9 +6,9 @@ Manage your tabs from context menu
 
 ## To Do
 1. Allow customizations of groups
-2. update context menu in the previous window and the new window.
-3. handle onclose tab event
-4. when move tabs to new window, open this window in full screen
+2. Remove "New tab" tab when moving to new window
+3. if a tab is closed and associated domain no longer in the current window, remove it from context menu items
+4. when move tabs to new window, open the new window in full screen
 
 
 ## Bugs
